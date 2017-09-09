@@ -1,4 +1,4 @@
-# ocrsdriver
+# ocxnetdriver
 OpenComputers + XNet = :heart:
 
 Allows OpenComputers to utilize XNet networks to transfer items, fluids and energy to connected blocks.
