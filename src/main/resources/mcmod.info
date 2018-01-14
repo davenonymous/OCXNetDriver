@@ -1,0 +1,16 @@
+[
+{
+  "modid": "ocxnetdriver",
+  "name": "OpenComputers Xnet Driver",
+  "description": "Programmable logistics over Xnet Networks",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Davenonymous"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
