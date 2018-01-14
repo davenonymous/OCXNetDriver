@@ -26,6 +26,7 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import org.dave.ocxnetdriver.config.ConfigurationHandler;
 import org.dave.ocxnetdriver.converter.ConverterBlockPos;
+import org.dave.ocxnetdriver.util.CachedReflectionHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +35,7 @@ import java.util.Map;
 
 public class EnvironmentXnetController extends AbstractManagedEnvironment implements NamedBlock {
     protected final IControllerContext controller;
+
     public EnvironmentXnetController(IControllerContext tileEntity) {
         controller = tileEntity;
 
@@ -406,6 +408,16 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             map.put("side", pos.getSide());
             map.put("name", state.getBlock().getRegistryName());
             map.put("meta", state.getBlock().getMetaFromState(state));
+
+            BlockPos connectorPos = pos.getPos().offset(pos.getSide());
+
+            String registryName = controller.getControllerWorld().getBlockState(connectorPos).getBlock().getRegistryName().toString();
+            if(registryName.equals("xnet:advanced_connector") || registryName.equals("xnet:connector")) {
+                String connectorName = CachedReflectionHelper.getFieldValue(String.class, controller.getControllerWorld().getTileEntity(connectorPos), "name");
+                if(connectorName != null && connectorName.length() > 0) {
+                    map.put("connector", connectorName);
+                }
+            }
 
             result.add(map);
         }
