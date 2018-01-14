@@ -1,11 +1,13 @@
 package org.dave.ocxnetdriver;
 
-import net.minecraftforge.fml.common.FMLLog;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Logger;
 
 public class Logz {
+    public static Logger logger;
+
     public static void log(Level logLevel, String fmt, Object... data) {
-        FMLLog.log(OCXNetDriver.MODID, logLevel, fmt, data);
+        logger.log(logLevel, String.format(fmt, data));
     }
 
     public static void all(String fmt, Object... data) {
@@ -38,5 +40,9 @@ public class Logz {
 
     public static void warn(String fmt, Object... data) {
         log(Level.WARN, fmt, data);
+    }
+
+    public static void setLogger(Logger modLog) {
+        Logz.logger = modLog;
     }
 }
