@@ -24,6 +24,7 @@ import net.minecraftforge.fluids.capability.IFluidTankProperties;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
+import org.dave.ocxnetdriver.config.ConfigurationHandler;
 import org.dave.ocxnetdriver.converter.ConverterBlockPos;
 
 import java.util.ArrayList;
@@ -95,20 +96,32 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "can not insert energy into target" };
         }
 
-        int simAmount = handler.extractEnergy(amount, true);
-        if(simAmount <= 0) {
-            return new Object[]{ null, "extractable amount from source is 0" };
+        int transferred = 0;
+        int simulatedTicks = 0;
+        int maxTicksToSimulate = ConfigurationHandler.Settings.ignoreEnergyTransferLimits() ? ConfigurationHandler.Settings.getMaxEnergyTransferTicksPerCall() : 1;
+        int lastTransfer = Integer.MAX_VALUE;
+        List<String> errors = new ArrayList<>();
+        while(transferred < amount && lastTransfer > 0 && simulatedTicks < maxTicksToSimulate) {
+            int simAmount = handler.extractEnergy(amount - transferred, true);
+            if(simAmount <= 0) {
+                errors.add("extractable amount from source is 0");
+                break;
+            }
+
+            int simReceived = targetHandler.receiveEnergy(simAmount, true);
+            if(simReceived <= 0) {
+                errors.add("insertable amount into target is 0");
+                break;
+            }
+
+            simulatedTicks++;
+            handler.extractEnergy(simReceived, false);
+            targetHandler.receiveEnergy(simReceived, false);
+
+            transferred += simReceived;
         }
 
-        int simReceived = targetHandler.receiveEnergy(simAmount, true);
-        if(simReceived <= 0) {
-            return new Object[]{ null, "insertable amount into target is 0" };
-        }
-
-        handler.extractEnergy(simReceived, false);
-        targetHandler.receiveEnergy(simReceived, false);
-
-        return new Object[]{ simReceived };
+        return new Object[]{ transferred, errors };
     }
 
     @Callback(doc = "function(pos:table[, side: number]):table -- Get capacity and stored energy of the given energy handler")
