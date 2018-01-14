@@ -5,7 +5,6 @@ Allows OpenComputers to utilize XNet networks to transfer items, fluids and ener
 
 ## Known Issues
 
-- Requires a patched version of XNet, see https://github.com/McJty/XNet/pull/157
 - This is currently unrestricted, i.e. you can transfer humongous amounts in no time.
 
 ## Available Methods
