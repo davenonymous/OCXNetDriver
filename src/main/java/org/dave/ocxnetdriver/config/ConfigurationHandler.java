@@ -47,6 +47,13 @@ public class ConfigurationHandler {
                 "How many energy transfer ticks to perform during a single call"
         );
 
+        Settings.useRelativePositions = configuration.getBoolean(
+                "useRelativePositions",
+                "General",
+                true,
+                "Whether to use positions relative to the controller instead of absolute positions"
+        );
+
         if(configuration.hasChanged()) {
             configuration.save();
         }
@@ -61,13 +68,14 @@ public class ConfigurationHandler {
     public static class Settings {
         private static boolean ignoreEnergyTransferLimits;
         private static int maxEnergyTransferTicksPerCall;
+        private static boolean useRelativePositions;
 
         public static boolean ignoreEnergyTransferLimits() {
             return ignoreEnergyTransferLimits;
         }
-
         public static int getMaxEnergyTransferTicksPerCall() {
             return maxEnergyTransferTicksPerCall;
         }
+        public static boolean useRelativePositions() { return useRelativePositions; }
     }
 }

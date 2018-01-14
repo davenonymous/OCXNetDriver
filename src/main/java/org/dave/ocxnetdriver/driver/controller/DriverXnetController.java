@@ -27,6 +27,6 @@ public class DriverXnetController extends DriverSidedBlock {
 
     @Override
     public ManagedEnvironment createEnvironment(World world, BlockPos pos, EnumFacing side) {
-        return new EnvironmentXnetController((IControllerContext) world.getTileEntity(pos));
+        return new EnvironmentXnetController(world.getTileEntity(pos));
     }
 }

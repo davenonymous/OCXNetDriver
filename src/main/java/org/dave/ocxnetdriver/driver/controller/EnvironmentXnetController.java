@@ -34,20 +34,42 @@ import java.util.List;
 import java.util.Map;
 
 public class EnvironmentXnetController extends AbstractManagedEnvironment implements NamedBlock {
-    protected final IControllerContext controller;
+    protected final TileEntity tileEntity;
+    protected final BlockPos controllerPos;
+    protected final World controllerWorld;
 
-    public EnvironmentXnetController(IControllerContext tileEntity) {
-        controller = tileEntity;
+    public EnvironmentXnetController(TileEntity tileEntity) {
+        this.tileEntity = tileEntity;
+        this.controllerWorld = this.tileEntity.getWorld();
+        this.controllerPos = this.tileEntity.getPos();
 
         this.setNode(Network.newNode(this, Visibility.Network).withComponent("xnet", Visibility.Network).create());
     }
 
-    @Callback(doc = "function(sourcePos:table, amount:number, targetPos:table[, sourceSide:number[, targetSide:number]]):number -- Transfer energy between two energy handlers")
-    public Object[] transferEnergy(final Context context, final Arguments args) {
-        BlockPos pos = ConverterBlockPos.checkBlockPos(args, 0);
-        SidedPos sidedPos = controller.getConnectedBlockPositions().stream()
+    private IControllerContext getControllerContext() {
+        return (IControllerContext) this.tileEntity;
+    }
+
+    private BlockPos toRelative(BlockPos pos) {
+        if(!ConfigurationHandler.Settings.useRelativePositions())return pos;
+        return pos.add(-controllerPos.getX(), -controllerPos.getY(), -controllerPos.getZ());
+    }
+
+    private BlockPos toAbsolute(BlockPos pos) {
+        if(!ConfigurationHandler.Settings.useRelativePositions())return pos;
+        return pos.add(controllerPos.getX(), controllerPos.getY(), controllerPos.getZ());
+    }
+
+    private SidedPos getSidedPos(BlockPos pos) {
+        return getControllerContext().getConnectedBlockPositions().stream()
                 .filter(sp -> sp.getPos().equals(pos)).findFirst()
                 .orElse(null);
+    }
+
+    @Callback(doc = "function(sourcePos:table, amount:number, targetPos:table[, sourceSide:number[, targetSide:number]]):number -- Transfer energy between two energy handlers")
+    public Object[] transferEnergy(final Context context, final Arguments args) {
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given source position is not connected to the network" };
@@ -55,10 +77,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
         int amount = args.checkInteger(1);
 
-        BlockPos targetPos = ConverterBlockPos.checkBlockPos(args, 2);
-        SidedPos targetSidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(targetPos)).findFirst()
-                .orElse(null);
+        BlockPos targetPos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 2));
+        SidedPos targetSidedPos = getSidedPos(targetPos);
 
         if(targetSidedPos == null) {
             return new Object[]{ null, "given target position is not connected to the network" };
@@ -68,8 +88,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         EnumFacing targetSide = EnumFacing.getFront(args.optInteger(4, targetSidedPos.getSide().getIndex()));
 
 
-        World world = this.controller.getControllerWorld();
-        TileEntity tileEntity = world.getTileEntity(pos);
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
             return new Object[]{ null, "source is not a tile entity" };
         }
@@ -78,7 +97,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "source is no forge energy handler" };
         }
 
-        TileEntity targetTileEntity = world.getTileEntity(targetPos);
+        TileEntity targetTileEntity = controllerWorld.getTileEntity(targetPos);
         if(targetTileEntity == null) {
             return new Object[]{ null, "target is not a tile entity" };
         }
@@ -128,10 +147,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
     @Callback(doc = "function(pos:table[, side: number]):table -- Get capacity and stored energy of the given energy handler")
     public Object[] getEnergy(final Context context, final Arguments args) {
-        BlockPos pos = ConverterBlockPos.checkBlockPos(args, 0);
-        SidedPos sidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(pos)).findFirst()
-                .orElse(null);
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given position is not connected to the network" };
@@ -139,8 +156,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
         EnumFacing side = EnumFacing.getFront(args.optInteger(1, sidedPos.getSide().getIndex()));
 
-        World world = this.controller.getControllerWorld();
-        TileEntity tileEntity = world.getTileEntity(pos);
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
             return new Object[]{ null, "not a tile entity" };
         }
@@ -162,10 +178,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
     @Callback(doc = "function(sourcePos:table, amount:number, targetPos:table[, sourceSide:number[, targetSide:number]]):number -- Transfer fluids between two tanks")
     public Object[] transferFluid(final Context context, final Arguments args) {
-        BlockPos pos = ConverterBlockPos.checkBlockPos(args, 0);
-        SidedPos sidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(pos)).findFirst()
-                .orElse(null);
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given source position is not connected to the network" };
@@ -173,10 +187,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
         int amount = args.checkInteger(1);
 
-        BlockPos targetPos = ConverterBlockPos.checkBlockPos(args, 2);
-        SidedPos targetSidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(targetPos)).findFirst()
-                .orElse(null);
+        BlockPos targetPos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 2));
+        SidedPos targetSidedPos = getSidedPos(targetPos);
 
         if(targetSidedPos == null) {
             return new Object[]{ null, "given target position is not connected to the network" };
@@ -185,9 +197,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         EnumFacing side = EnumFacing.getFront(args.optInteger(3, sidedPos.getSide().getIndex()));
         EnumFacing targetSide = EnumFacing.getFront(args.optInteger(4, targetSidedPos.getSide().getIndex()));
 
-
-        World world = this.controller.getControllerWorld();
-        TileEntity tileEntity = world.getTileEntity(pos);
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
             return new Object[]{ null, "source is not a tile entity" };
         }
@@ -196,7 +206,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "source is not an fluid handler" };
         }
 
-        TileEntity targetTileEntity = world.getTileEntity(targetPos);
+        TileEntity targetTileEntity = controllerWorld.getTileEntity(targetPos);
         if(targetTileEntity == null) {
             return new Object[]{ null, "target is not a tile entity" };
         }
@@ -226,10 +236,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
     @Callback(doc = "function(pos:table[, side: number]):table -- List all fluids in the given tank")
     public Object[] getFluids(final Context context, final Arguments args) {
-        BlockPos pos = ConverterBlockPos.checkBlockPos(args, 0);
-        SidedPos sidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(pos)).findFirst()
-                .orElse(null);
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given position is not connected to the network" };
@@ -237,8 +245,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
         EnumFacing side = EnumFacing.getFront(args.optInteger(1, sidedPos.getSide().getIndex()));
 
-        World world = this.controller.getControllerWorld();
-        TileEntity tileEntity = world.getTileEntity(pos);
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
             return new Object[]{ null, "not a tile entity" };
         }
@@ -262,10 +269,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
     @Callback(doc = "function(sourcePos:table, sourceSlot:number, amount:number, targetPos:table[, sourceSide:number[, targetSide:number]]):number -- Transfer items between two inventories")
     public Object[] transferItem(final Context context, final Arguments args) {
-        BlockPos pos = ConverterBlockPos.checkBlockPos(args, 0);
-        SidedPos sidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(pos)).findFirst()
-                .orElse(null);
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given source position is not connected to the network" };
@@ -274,11 +279,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         int slot = args.checkInteger(1);
         int amount = args.checkInteger(2);
 
-
-        BlockPos targetPos = ConverterBlockPos.checkBlockPos(args, 3);
-        SidedPos targetSidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(targetPos)).findFirst()
-                .orElse(null);
+        BlockPos targetPos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 3));
+        SidedPos targetSidedPos = getSidedPos(targetPos);
 
         if(targetSidedPos == null) {
             return new Object[]{ null, "given target position is not connected to the network" };
@@ -288,8 +290,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         EnumFacing targetSide = EnumFacing.getFront(args.optInteger(5, targetSidedPos.getSide().getIndex()));
 
 
-        World world = this.controller.getControllerWorld();
-        TileEntity tileEntity = world.getTileEntity(pos);
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
             return new Object[]{ null, "source is not a tile entity" };
         }
@@ -298,7 +299,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "source is not an item handler" };
         }
 
-        TileEntity targetTileEntity = world.getTileEntity(targetPos);
+        TileEntity targetTileEntity = controllerWorld.getTileEntity(targetPos);
         if(targetTileEntity == null) {
             return new Object[]{ null, "target is not a tile entity" };
         }
@@ -333,10 +334,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
     @Callback(doc = "function(pos:table[, side: number]):table -- List all items in the given inventory")
     public Object[] getItems(final Context context, final Arguments args) {
-        BlockPos pos = ConverterBlockPos.checkBlockPos(args, 0);
-        SidedPos sidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(pos)).findFirst()
-                .orElse(null);
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given position is not connected to the network" };
@@ -344,8 +343,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
         EnumFacing side = EnumFacing.getFront(args.optInteger(1, sidedPos.getSide().getIndex()));
 
-        World world = this.controller.getControllerWorld();
-        TileEntity tileEntity = world.getTileEntity(pos);
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
             return new Object[]{ null, "not a tile entity" };
         }
@@ -364,11 +362,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
     @Callback(doc = "function(pos:table[, side: number]):table -- List all capabilities of the given block at the given or connected side")
     public Object[] getSupportedCapabilities(final Context context, final Arguments args) {
-        BlockPos pos = ConverterBlockPos.checkBlockPos(args, 0);
-
-        SidedPos sidedPos = controller.getConnectedBlockPositions().stream()
-                .filter(sp -> sp.getPos().equals(pos)).findFirst()
-                .orElse(null);
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given position is not connected to the network" };
@@ -376,9 +371,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
         EnumFacing side = EnumFacing.getFront(args.optInteger(1, sidedPos.getSide().getIndex()));
 
-        World world = this.controller.getControllerWorld();
-
-        TileEntity tileEntity = world.getTileEntity(pos);
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
             return new Object[]{ null, "not a tile entity" };
         }
@@ -400,20 +393,20 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
     @Callback(doc = "function():table -- List all blocks connected to the XNet network")
     public Object[] getConnectedBlocks(final Context context, final Arguments args) {
         List<Map<String, Object>> result = new ArrayList<>();
-        for(SidedPos pos : controller.getConnectedBlockPositions()) {
+        for(SidedPos pos : getControllerContext().getConnectedBlockPositions()) {
             HashMap<String, Object> map = new HashMap<>();
-            IBlockState state = controller.getControllerWorld().getBlockState(pos.getPos());
+            IBlockState state = controllerWorld.getBlockState(pos.getPos());
 
-            map.put("pos", pos.getPos());
+            map.put("pos", toRelative(pos.getPos()));
             map.put("side", pos.getSide());
             map.put("name", state.getBlock().getRegistryName());
             map.put("meta", state.getBlock().getMetaFromState(state));
 
             BlockPos connectorPos = pos.getPos().offset(pos.getSide());
 
-            String registryName = controller.getControllerWorld().getBlockState(connectorPos).getBlock().getRegistryName().toString();
+            String registryName = controllerWorld.getBlockState(connectorPos).getBlock().getRegistryName().toString();
             if(registryName.equals("xnet:advanced_connector") || registryName.equals("xnet:connector")) {
-                String connectorName = CachedReflectionHelper.getFieldValue(String.class, controller.getControllerWorld().getTileEntity(connectorPos), "name");
+                String connectorName = CachedReflectionHelper.getFieldValue(String.class, controllerWorld.getTileEntity(connectorPos), "name");
                 if(connectorName != null && connectorName.length() > 0) {
                     map.put("connector", connectorName);
                 }
