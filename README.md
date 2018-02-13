@@ -19,7 +19,7 @@ Allows OpenComputers to utilize XNet networks to transfer items, fluids and ener
 | transferItem(sourcePos, sourceSlot, amount, targetPos[, sourceSide[, targetSide]]) | Transfer items between two inventories      |
 | transferFluid(sourcePos, amount, targetPos[, sourceSide[, targetSide]])            | Transfer fluids between two tanks           |
 | transferEnergy(sourcePos, amount, targetPos[, sourceSide[, targetSide]])           | Transfer energy between two energy handlers |
-
+| setDatabaseSlot(sourcePos, sourceSlot, database, entry[, sourceSide])              | Store an itemstack from somewhere in the XNet network in a database upgrade |
 
 ## Synopsis
 

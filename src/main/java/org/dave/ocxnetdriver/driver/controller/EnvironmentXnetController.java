@@ -2,9 +2,12 @@ package org.dave.ocxnetdriver.driver.controller;
 
 import li.cil.oc.api.Network;
 import li.cil.oc.api.driver.NamedBlock;
+import li.cil.oc.api.internal.Database;
 import li.cil.oc.api.machine.Arguments;
 import li.cil.oc.api.machine.Callback;
 import li.cil.oc.api.machine.Context;
+import li.cil.oc.api.network.Environment;
+import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.Visibility;
 import li.cil.oc.api.prefab.AbstractManagedEnvironment;
 import mcjty.xnet.api.channels.IControllerContext;
@@ -355,9 +358,60 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         IItemHandler handler = tileEntity.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, side);
         List<ItemStack> result = new ArrayList<>();
         for(int slot = 0; slot < handler.getSlots(); slot++) {
-            result.add(handler.getStackInSlot(slot));
+            ItemStack stack = handler.getStackInSlot(slot);
+            if(stack.isEmpty()) {
+                result.add(null);
+            } else {
+                result.add(stack.copy());
+            }
         }
+
         return new Object[]{ result };
+    }
+
+    @Callback(doc = "function(sourcePos:table, sourceSlot:number, database:address, entry:number[, sourceSide:number]) -- Store an itemstack from somewhere in the XNet network in a database upgrade")
+    public Object[] setDatabaseSlot(final Context context, final Arguments args) {
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        SidedPos sidedPos = getSidedPos(pos);
+
+        if(sidedPos == null) {
+            return new Object[]{ null, "given source position is not connected to the network" };
+        }
+
+        int slot = args.checkInteger(1) - 1;
+        String address = args.checkString(2);
+        int entry = args.checkInteger(3) - 1;
+        EnumFacing side = EnumFacing.getFront(args.optInteger(4, sidedPos.getSide().getIndex()));
+
+        Node databaseNode = node().network().node(address);
+        if(databaseNode == null) {
+            return new Object[]{ null, "given component address does not exist" };
+        }
+
+        Environment databaseEnvironment = databaseNode.host();
+        if(databaseEnvironment == null || !(databaseEnvironment instanceof Database)) {
+            return new Object[]{ null, "given component is no database" };
+        }
+
+        TileEntity tileEntity = controllerWorld.getTileEntity(pos);
+        if(tileEntity == null) {
+            return new Object[]{ null, "not a tile entity" };
+        }
+
+        if(!tileEntity.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, side)) {
+            return new Object[]{ null, "not an item handler" };
+        }
+
+        IItemHandler handler = tileEntity.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, side);
+        ItemStack stack = handler.getStackInSlot(slot);
+        if(stack.isEmpty()) {
+            return new Object[]{ null, "given slot in item handler is empty" };
+        }
+
+        Database database = (Database)databaseEnvironment;
+        database.setStackInSlot(entry, stack);
+
+        return new Object[]{ stack };
     }
 
     @Callback(doc = "function(pos:table[, side: number]):table -- List all capabilities of the given block at the given or connected side")
