@@ -370,7 +370,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
     }
 
     @Callback(doc = "function(sourcePos:table, sourceSlot:number, database:address, entry:number[, sourceSide:number]) -- Store an itemstack from somewhere in the XNet network in a database upgrade")
-    public Object[] setDatabaseSlot(final Context context, final Arguments args) {
+    public Object[] store(final Context context, final Arguments args) {
         BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
         SidedPos sidedPos = getSidedPos(pos);
 
