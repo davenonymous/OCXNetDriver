@@ -26,15 +26,52 @@ Allows OpenComputers to utilize XNet networks to transfer items, fluids and ener
 ```lua
 local component = require('component')
 local sides = require('sides')
+local serialization = require('serialization');
 
 local xnet = component.xnet
 
+-- Dump all found blocks and track all vanilla types in a table
 local chests = {}
+local tanks = {}
+local cells = {}
 for i,block in ipairs(xnet.getConnectedBlocks()) do
+    print(serialization.serialize(block))
     if(block.name == "minecraft:chest") then
         chests[#chests+1] = block
+    elseif(block.name == "thermalexpansion:tank") then
+        tanks[#tanks+1] = block
+    elseif(block.name == "thermalexpansion:cell") then
+        cells[#cells+1] = block
     end
 end
+-- {name="thermalexpansion:cell",pos={z=0,y=-1,x=0},side="west",meta=0}
+-- {name="opencomputers:case3",pos={z=0,y=-1,x=1},side="north",meta=1}
+-- {name="thermalexpansion:tank",pos={z=0,y=0,x=-2},side="down",meta=0,connector="Dynamo"}
+-- {name="minecraft:chest",pos={z=1,y=-1,x=-2},side="north",meta=3,connector="Dynamo"}
+-- {name="thermalexpansion:dynamo",pos={z=0,y=-1,x=-3},side="east",meta=2,connector="Dynamo"}
+-- {name="thermalexpansion:tank",pos={z=0,y=1,x=-1},side="down",meta=0}
+-- {name="thermalexpansion:tank",pos={z=0,y=0,x=-2},side="east",meta=0}
+-- {name="xnet:controller",pos={z=0,y=0,x=0},side="west",meta=3}
+
+-- Dump the contents of the first chest:
+print(serialization.serialize(xnet.getItems(chests[1].pos)))
+-- {
+--    {maxSize=64,size=64,hasTag=false,maxDamage=0,damage=0,name="minecraft:stone",label="Stone"},
+--    {maxSize=64,size=64,hasTag=false,maxDamage=0,damage=0,name="minecraft:hay_block",label="Hay Bale"},
+--    [27]={maxSize=64,size=1,hasTag=false,maxDamage=0,damage=0,name="xnet:controller",label="Controller"},
+--    n=27
+-- }
+
+-- Dump the contents of the first tank
+print(serialization.serialize(xnet.getFluids(tanks[1].pos)))
+-- {
+--    {content={label="Essence of Knowledge",amount=4000,hasTag=false,name="experience"},capacity=20000},
+--    n=1
+-- }
+
+-- Dump the contents of the first cell
+print(serialization.serialize(xnet.getEnergy(cells[1].pos)))
+-- {canExtract=true,stored=4000,capacity=2000000,canReceive=true}
 
 -- Transfer 5 of whatever is in slot 1 of chest 1 into chest 2
 print("Transferred: " .. tostring(xnet.transferItem(chests[1].pos, 1, 5, chests[2].pos)))
