@@ -18,7 +18,7 @@ import org.dave.ocxnetdriver.driver.controller.DriverXnetController;
 )
 public class OCXNetDriver {
     public static final String MODID = "ocxnetdriver";
-    public static final String VERSION = "1.0.1";
+    public static final String VERSION = "1.0.2";
     public static final String GUI_FACTORY = "org.dave.ocxnetdriver.config.GuiFactory";
 
     @Mod.Instance
