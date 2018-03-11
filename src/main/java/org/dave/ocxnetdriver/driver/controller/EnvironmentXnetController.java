@@ -409,7 +409,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         }
 
         Database database = (Database)databaseEnvironment;
-        database.setStackInSlot(entry, stack);
+        database.setStackInSlot(entry, stack.copy());
 
         return new Object[]{ stack };
     }
