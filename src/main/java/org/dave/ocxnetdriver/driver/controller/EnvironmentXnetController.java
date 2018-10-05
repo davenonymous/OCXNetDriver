@@ -359,11 +359,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         List<ItemStack> result = new ArrayList<>();
         for(int slot = 0; slot < handler.getSlots(); slot++) {
             ItemStack stack = handler.getStackInSlot(slot);
-            if(stack.isEmpty()) {
-                result.add(null);
-            } else {
-                result.add(stack.copy());
-            }
+            result.add(stack.copy());
         }
 
         return new Object[]{ result };
