@@ -16,10 +16,10 @@ Allows OpenComputers to utilize XNet networks to transfer items, fluids and ener
 | getItems(pos[, side])                       | Returns a table with all items in the given inventory            |
 | getFluids(pos[, side])                      | List all fluids in the given tank                                |
 | getEnergy(pos[, side])                      | Get capacity and stored energy of the given energy handler       |
-| transferItem(sourcePos, sourceSlot, amount, targetPos[, sourceSide[, targetSide]]) | Transfer items between two inventories      |
-| transferFluid(sourcePos, amount, targetPos[, sourceSide[, targetSide]])            | Transfer fluids between two tanks           |
-| transferEnergy(sourcePos, amount, targetPos[, sourceSide[, targetSide]])           | Transfer energy between two energy handlers |
-| store(sourcePos, sourceSlot, database, entry[, sourceSide])                        | Store an itemstack from somewhere in the XNet network in a database upgrade |
+| transferItem(sourcePos, sourceSlot, amount, targetPos[, sourceSide[, targetSide]])   | Transfer items between two inventories      |
+| transferFluid(sourcePos, amount, targetPos[, fluidName][, sourceSide[, targetSide]]) | Transfer fluids between two tanks           |
+| transferEnergy(sourcePos, amount, targetPos[, sourceSide[, targetSide]])             | Transfer energy between two energy handlers |
+| store(sourcePos, sourceSlot, database, entry[, sourceSide])                          | Store an itemstack from somewhere in the XNet network in a database upgrade |
 
 ## Synopsis
 
