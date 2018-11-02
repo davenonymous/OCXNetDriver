@@ -20,6 +20,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
@@ -179,26 +180,36 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         return new Object[]{ result };
     }
 
-    @Callback(doc = "function(sourcePos:table, amount:number, targetPos:table[, sourceSide:number[, targetSide:number]]):number -- Transfer fluids between two tanks")
+    @Callback(doc = "function(sourcePos:table, amount:number, targetPos:table[, fluidName:string][, sourceSide:number[, targetSide:number]]):number -- Transfer fluids between two tanks")
     public Object[] transferFluid(final Context context, final Arguments args) {
-        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
+        int nextArg = 0;
+        BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, nextArg++));
         SidedPos sidedPos = getSidedPos(pos);
 
         if(sidedPos == null) {
             return new Object[]{ null, "given source position is not connected to the network" };
         }
 
-        int amount = args.checkInteger(1);
+        int amount = args.checkInteger(nextArg++);
 
-        BlockPos targetPos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 2));
+        BlockPos targetPos = toAbsolute(ConverterBlockPos.checkBlockPos(args, nextArg++));
         SidedPos targetSidedPos = getSidedPos(targetPos);
 
         if(targetSidedPos == null) {
             return new Object[]{ null, "given target position is not connected to the network" };
         }
 
-        EnumFacing side = EnumFacing.getFront(args.optInteger(3, sidedPos.getSide().getIndex()));
-        EnumFacing targetSide = EnumFacing.getFront(args.optInteger(4, targetSidedPos.getSide().getIndex()));
+        String fluidName = null;
+        FluidStack extractStack = null;
+        if(args.isString(nextArg)) {
+            fluidName = args.checkString(nextArg++);
+            extractStack = FluidRegistry.getFluidStack(fluidName, amount);
+            if(extractStack == null) {
+                return new Object[]{ null, "unknown fluid '" + fluidName + "'" };
+            }
+        }
+        EnumFacing side = EnumFacing.getFront(args.optInteger(nextArg++, sidedPos.getSide().getIndex()));
+        EnumFacing targetSide = EnumFacing.getFront(args.optInteger(nextArg++, targetSidedPos.getSide().getIndex()));
 
         TileEntity tileEntity = controllerWorld.getTileEntity(pos);
         if(tileEntity == null) {
@@ -221,7 +232,13 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         IFluidHandler handler = tileEntity.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, side);
         IFluidHandler targetHandler = targetTileEntity.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, targetSide);
 
-        FluidStack simStack = handler.drain(amount, false);
+        FluidStack simStack;
+        if(extractStack != null) {
+            simStack = handler.drain(extractStack, false);
+        } else {
+            simStack = handler.drain(amount, false);
+        }
+
         if(simStack == null) {
             return new Object[]{ null, "can not drain from source tank" };
         }
@@ -231,7 +248,13 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "can not fill target tank" };
         }
 
-        FluidStack realStack = handler.drain(simAmount, true);
+        FluidStack realStack;
+        if(extractStack != null) {
+            realStack = handler.drain(extractStack, true);
+        } else {
+            realStack = handler.drain(amount, true);
+        }
+
         targetHandler.fill(realStack, true);
 
         return new Object[]{ simAmount };
