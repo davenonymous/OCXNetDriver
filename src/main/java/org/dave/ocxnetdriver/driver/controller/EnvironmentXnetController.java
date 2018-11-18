@@ -250,9 +250,10 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
 
         FluidStack realStack;
         if(extractStack != null) {
+            extractStack.amount = simAmount;
             realStack = handler.drain(extractStack, true);
         } else {
-            realStack = handler.drain(amount, true);
+            realStack = handler.drain(simAmount, true);
         }
 
         targetHandler.fill(realStack, true);
