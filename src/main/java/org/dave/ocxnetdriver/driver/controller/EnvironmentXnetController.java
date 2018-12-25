@@ -17,6 +17,7 @@ import mcjty.lib.compat.RedstoneFluxCompatibility;
 import mcjty.xnet.XNet;
 import mcjty.xnet.api.channels.IControllerContext;
 import mcjty.xnet.api.keys.SidedPos;
+import mcjty.xnet.blocks.cables.ConnectorTileEntity;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -146,6 +147,19 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "given source position is not connected to the network" };
         }
 
+        TileEntity _connectorTileEntity = controllerWorld.getTileEntity(pos.offset(sidedPos.getSide()));
+        if(_connectorTileEntity == null) {
+            return new Object[]{ null, "connector is not a tile entity" };
+        }
+
+        ConnectorTileEntity connectorTileEntity;
+        if(_connectorTileEntity instanceof ConnectorTileEntity) {
+            connectorTileEntity = (ConnectorTileEntity)_connectorTileEntity;
+        }
+        else {
+            return new Object[]{ null, "connector is not an XNet connector" };
+        }
+
         int amount = args.checkInteger(1);
 
         BlockPos targetPos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 2));
@@ -177,11 +191,37 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{null, "target is not an energy handler"};
         }
 
+        int actualTransferred = 0;
+
+        // allow energy input from specified side
+        connectorTileEntity.setEnergyInputFrom(side.getOpposite(), Math.max(amount, connectorTileEntity.getEnergy()));
+
+        // first drain from connector itself
+
         // simulate first to see how much we can transfer
-        int maxTransfer = extractEnergy(tileEntity, side, amount, true);
-        int transferred = receiveEnergy(targetTileEntity, targetSide, maxTransfer, true);
-        int actualExtracted = extractEnergy(tileEntity, side, transferred, false);
-        int actualTransferred = receiveEnergy(targetTileEntity, targetSide, actualExtracted, false);
+        int maxTransfer = Math.min(connectorTileEntity.getEnergy(), amount);
+        if(maxTransfer > 0) {
+            int transferred = receiveEnergy(targetTileEntity, targetSide, maxTransfer, true);
+
+            // then do the actual transfer
+            actualTransferred += receiveEnergy(targetTileEntity, targetSide, transferred, false);
+
+            // tell the connector block that we've consumed some energy
+            connectorTileEntity.setEnergy(Math.max(0, connectorTileEntity.getEnergy() - actualTransferred));
+
+            amount = Math.max(0,amount - actualTransferred);
+        }
+
+        // then drain from the specified machine
+        if(amount > 0) {
+            // simulate first to see how much we can transfer
+            int maxTransferMach = extractEnergy(tileEntity, side, amount, true);
+            int transferredMach = receiveEnergy(targetTileEntity, targetSide, maxTransferMach, true);
+
+            // then do the actual transfer
+            int actualExtractedMach = extractEnergy(tileEntity, side, transferredMach, false);
+            actualTransferred += receiveEnergy(targetTileEntity, targetSide, actualExtractedMach, false);
+        }
 
         return new Object[]{ actualTransferred };
     }
