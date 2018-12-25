@@ -194,7 +194,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         int actualTransferred = 0;
 
         // allow energy input from specified side
-        connectorTileEntity.setEnergyInputFrom(side.getOpposite(), Math.max(amount, connectorTileEntity.getEnergy()));
+        connectorTileEntity.setEnergyInputFrom(side.getOpposite(), connectorTileEntity.getMaxEnergy());
 
         // first drain from connector itself
 
