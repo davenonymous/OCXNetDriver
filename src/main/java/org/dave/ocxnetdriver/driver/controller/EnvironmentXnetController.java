@@ -76,8 +76,17 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
                 .orElse(null);
     }
 
+    public static boolean isXNetUsingRedstoneFlux() {
+        try {
+            return XNet.redstoneflux;
+        }
+        catch(Error e) {
+            return false;
+        }
+    }
+
     public static int getEnergyLevel(TileEntity tileEntity, @Nonnull EnumFacing side) {
-        if (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
+        if (isXNetUsingRedstoneFlux() && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
             return RedstoneFluxCompatibility.getEnergy(tileEntity);
         } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
             IEnergyStorage energy = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
@@ -88,7 +97,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
     }
 
     public static int getMaxEnergyLevel(TileEntity tileEntity, @Nonnull EnumFacing side) {
-        if (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
+        if (isXNetUsingRedstoneFlux() && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
             return RedstoneFluxCompatibility.getMaxEnergy(tileEntity);
         } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
             IEnergyStorage energy = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
@@ -99,7 +108,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
     }
 
     public static int receiveEnergy(TileEntity tileEntity, EnumFacing from, int maxReceive, boolean simulate) {
-        if (McJtyLib.redstoneflux && RedstoneFluxCompatibility.isEnergyReceiver(tileEntity)) {
+        if (isXNetUsingRedstoneFlux() && RedstoneFluxCompatibility.isEnergyReceiver(tileEntity)) {
             return ((IEnergyReceiver) tileEntity).receiveEnergy(from, maxReceive, simulate);
         } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, from)) {
             IEnergyStorage capability = tileEntity.getCapability(CapabilityEnergy.ENERGY, from);
@@ -111,7 +120,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
     }
 
     public static int extractEnergy(TileEntity tileEntity, @Nonnull EnumFacing side, int maxExtract, boolean simulate) {
-        if (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
+        if (isXNetUsingRedstoneFlux() && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
             return ((IEnergyProvider) tileEntity).extractEnergy(side, maxExtract, simulate);
         } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
             IEnergyStorage energy = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
@@ -125,7 +134,7 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
         if (te == null) {
             return false;
         }
-        return (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(te)) || te.hasCapability(CapabilityEnergy.ENERGY, side);
+        return (isXNetUsingRedstoneFlux() && RedstoneFluxCompatibility.isEnergyHandler(te)) || te.hasCapability(CapabilityEnergy.ENERGY, side);
     }
 
     @Callback(doc = "function(sourcePos:table, amount:number, targetPos:table[, sourceSide:number[, targetSide:number]]):number -- Transfer energy between two energy handlers")
