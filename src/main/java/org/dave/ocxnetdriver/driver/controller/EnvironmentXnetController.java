@@ -177,8 +177,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{null, "target is not an energy handler"};
         }
 
-        int maxTransfer = Math.min(getEnergyLevel(tileEntity,side), amount);
         // simulate first to see how much we can transfer
+        int maxTransfer = extractEnergy(tileEntity, side, amount, true);
         int transferred = receiveEnergy(targetTileEntity, targetSide, maxTransfer, true);
         int actualExtracted = extractEnergy(tileEntity, side, transferred, false);
         int actualTransferred = receiveEnergy(targetTileEntity, targetSide, actualExtracted, false);
