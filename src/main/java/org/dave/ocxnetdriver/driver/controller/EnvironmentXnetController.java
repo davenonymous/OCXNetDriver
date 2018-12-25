@@ -1,5 +1,7 @@
 package org.dave.ocxnetdriver.driver.controller;
 
+import cofh.redstoneflux.api.IEnergyProvider;
+import cofh.redstoneflux.api.IEnergyReceiver;
 import li.cil.oc.api.Network;
 import li.cil.oc.api.driver.NamedBlock;
 import li.cil.oc.api.internal.Database;
@@ -10,6 +12,9 @@ import li.cil.oc.api.network.Environment;
 import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.Visibility;
 import li.cil.oc.api.prefab.AbstractManagedEnvironment;
+import mcjty.lib.McJtyLib;
+import mcjty.lib.compat.RedstoneFluxCompatibility;
+import mcjty.xnet.XNet;
 import mcjty.xnet.api.channels.IControllerContext;
 import mcjty.xnet.api.keys.SidedPos;
 import net.minecraft.block.state.IBlockState;
@@ -32,6 +37,7 @@ import org.dave.ocxnetdriver.config.ConfigurationHandler;
 import org.dave.ocxnetdriver.converter.ConverterBlockPos;
 import org.dave.ocxnetdriver.util.CachedReflectionHelper;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -70,6 +76,58 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
                 .orElse(null);
     }
 
+    public static int getEnergyLevel(TileEntity tileEntity, @Nonnull EnumFacing side) {
+        if (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
+            return RedstoneFluxCompatibility.getEnergy(tileEntity);
+        } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
+            IEnergyStorage energy = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
+            return energy.getEnergyStored();
+        } else {
+            return 0;
+        }
+    }
+
+    public static int getMaxEnergyLevel(TileEntity tileEntity, @Nonnull EnumFacing side) {
+        if (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
+            return RedstoneFluxCompatibility.getMaxEnergy(tileEntity);
+        } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
+            IEnergyStorage energy = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
+            return energy.getMaxEnergyStored();
+        } else {
+            return 0;
+        }
+    }
+
+    public static int receiveEnergy(TileEntity tileEntity, EnumFacing from, int maxReceive, boolean simulate) {
+        if (McJtyLib.redstoneflux && RedstoneFluxCompatibility.isEnergyReceiver(tileEntity)) {
+            return ((IEnergyReceiver) tileEntity).receiveEnergy(from, maxReceive, simulate);
+        } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, from)) {
+            IEnergyStorage capability = tileEntity.getCapability(CapabilityEnergy.ENERGY, from);
+            if (capability.canReceive()) {
+                return capability.receiveEnergy(maxReceive, simulate);
+            }
+        }
+        return 0;
+    }
+
+    public static int extractEnergy(TileEntity tileEntity, @Nonnull EnumFacing side, int maxExtract, boolean simulate) {
+        if (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(tileEntity)) {
+            return ((IEnergyProvider) tileEntity).extractEnergy(side, maxExtract, simulate);
+        } else if (tileEntity != null && tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
+            IEnergyStorage energy = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
+            return energy.extractEnergy(maxExtract, simulate);
+        } else {
+            return 0;
+        }
+    }
+
+    public static boolean isEnergyTE(TileEntity te, @Nonnull EnumFacing side) {
+        if (te == null) {
+            return false;
+        }
+        return (XNet.redstoneflux && RedstoneFluxCompatibility.isEnergyHandler(te)) || te.hasCapability(CapabilityEnergy.ENERGY, side);
+    }
+
     @Callback(doc = "function(sourcePos:table, amount:number, targetPos:table[, sourceSide:number[, targetSide:number]]):number -- Transfer energy between two energy handlers")
     public Object[] transferEnergy(final Context context, final Arguments args) {
         BlockPos pos = toAbsolute(ConverterBlockPos.checkBlockPos(args, 0));
@@ -97,8 +155,8 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "source is not a tile entity" };
         }
 
-        if(!tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
-            return new Object[]{ null, "source is no forge energy handler" };
+        if(!isEnergyTE(tileEntity, targetSide)) {
+            return new Object[]{ null, "source is not an energy handler" };
         }
 
         TileEntity targetTileEntity = controllerWorld.getTileEntity(targetPos);
@@ -106,47 +164,17 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "target is not a tile entity" };
         }
 
-        if(!targetTileEntity.hasCapability(CapabilityEnergy.ENERGY, targetSide)) {
-            return new Object[]{ null, "target is no forge energy handler" };
+        if(!isEnergyTE(targetTileEntity, targetSide)) {
+            return new Object[]{null, "target is not an energy handler"};
         }
 
-        IEnergyStorage handler = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
-        IEnergyStorage targetHandler = targetTileEntity.getCapability(CapabilityEnergy.ENERGY, targetSide);
+        int maxTransfer = Math.min(getEnergyLevel(tileEntity,side), amount);
+        // simulate first to see how much we can transfer
+        int transferred = receiveEnergy(targetTileEntity, targetSide, maxTransfer, true);
+        int actualExtracted = extractEnergy(tileEntity, side, transferred, false);
+        int actualTransferred = receiveEnergy(targetTileEntity, targetSide, actualExtracted, false);
 
-        if(!handler.canExtract()) {
-            return new Object[]{ null, "can not extract energy from source" };
-        }
-
-        if(!targetHandler.canReceive()) {
-            return new Object[]{ null, "can not insert energy into target" };
-        }
-
-        int transferred = 0;
-        int simulatedTicks = 0;
-        int maxTicksToSimulate = ConfigurationHandler.Settings.ignoreEnergyTransferLimits() ? ConfigurationHandler.Settings.getMaxEnergyTransferTicksPerCall() : 1;
-        int lastTransfer = Integer.MAX_VALUE;
-        List<String> errors = new ArrayList<>();
-        while(transferred < amount && lastTransfer > 0 && simulatedTicks < maxTicksToSimulate) {
-            int simAmount = handler.extractEnergy(amount - transferred, true);
-            if(simAmount <= 0) {
-                errors.add("extractable amount from source is 0");
-                break;
-            }
-
-            int simReceived = targetHandler.receiveEnergy(simAmount, true);
-            if(simReceived <= 0) {
-                errors.add("insertable amount into target is 0");
-                break;
-            }
-
-            simulatedTicks++;
-            handler.extractEnergy(simReceived, false);
-            targetHandler.receiveEnergy(simReceived, false);
-
-            transferred += simReceived;
-        }
-
-        return new Object[]{ transferred, errors };
+        return new Object[]{ actualTransferred };
     }
 
     @Callback(doc = "function(pos:table[, side: number]):table -- Get capacity and stored energy of the given energy handler")
@@ -165,17 +193,13 @@ public class EnvironmentXnetController extends AbstractManagedEnvironment implem
             return new Object[]{ null, "not a tile entity" };
         }
 
-        if(!tileEntity.hasCapability(CapabilityEnergy.ENERGY, side)) {
-            return new Object[]{ null, "not a forge energy handler" };
+        if(!isEnergyTE(tileEntity, side)) {
+            return new Object[]{ null, "not an energy handler" };
         }
 
-        IEnergyStorage handler = tileEntity.getCapability(CapabilityEnergy.ENERGY, side);
-
         HashMap<String, Object> result = new HashMap<>();
-        result.put("capacity", handler.getMaxEnergyStored());
-        result.put("stored", handler.getEnergyStored());
-        result.put("canExtract", handler.canExtract());
-        result.put("canReceive", handler.canReceive());
+        result.put("capacity", getMaxEnergyLevel(tileEntity, side));
+        result.put("stored", getEnergyLevel(tileEntity, side));
 
         return new Object[]{ result };
     }
